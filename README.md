@@ -1,3 +1,6 @@
+This Mini-Project is done as a part of Computer Networks course (UE25CS243A)
+<br>
+
 This does not work on latest python so the process is different. You can follow this -
 ```
 # Install Python 3.10 package and venv module
