@@ -15,7 +15,8 @@ export const LossChart: React.FC<LossChartProps> = ({ state }) => {
   const plotHeight = height - padding.top - padding.bottom;
   const maxLoss = 40; // Scale 0 to 40%
 
-  let points = '';
+  let primaryPoints = '';
+  let alternatePoints = '';
   let rerouteX: number | null = null;
 
   if (history.length > 0) {
@@ -23,16 +24,25 @@ export const LossChart: React.FC<LossChartProps> = ({ state }) => {
     const maxSeq = Math.max(minSeq + 20, history[history.length - 1].seq);
     const seqRange = Math.max(1, maxSeq - minSeq);
 
-    points = history
-      .map((pt, idx) => {
-        const x = padding.left + ((pt.seq - minSeq) / seqRange) * plotWidth;
-        const y = padding.top + plotHeight - (Math.min(pt.loss_rate, maxLoss) / maxLoss) * plotHeight;
-        if (pt.path.includes('ALTERNATE') && rerouteX === null) {
-          rerouteX = x;
-        }
-        return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
-      })
-      .join(' ');
+    const primaryPts: string[] = [];
+    const alternatePts: string[] = [];
+
+    history.forEach((pt) => {
+      const x = padding.left + ((pt.seq - minSeq) / seqRange) * plotWidth;
+      const y = padding.top + plotHeight - (Math.min(pt.loss_rate, maxLoss) / maxLoss) * plotHeight;
+      const isAlt = pt.path.includes('ALTERNATE');
+      if (isAlt && rerouteX === null) {
+        rerouteX = x;
+      }
+      if (isAlt) {
+        alternatePts.push(`${alternatePts.length === 0 ? 'M' : 'L'} ${x} ${y}`);
+      } else {
+        primaryPts.push(`${primaryPts.length === 0 ? 'M' : 'L'} ${x} ${y}`);
+      }
+    });
+
+    primaryPoints = primaryPts.join(' ');
+    alternatePoints = alternatePts.join(' ');
   }
 
   return (
@@ -50,13 +60,17 @@ export const LossChart: React.FC<LossChartProps> = ({ state }) => {
         {/* Legend */}
         <div style={{ display: 'flex', gap: '14px', fontSize: '0.75rem' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
-            <span style={{ width: '12px', height: '3px', background: state.total_lost > 0 ? '#f43f5e' : '#10b981', display: 'inline-block', borderRadius: '1px' }} />
-            Measured Loss Rate %
+            <span style={{ width: '12px', height: '3px', background: '#f43f5e', display: 'inline-block', borderRadius: '1px' }} />
+            Primary (s2)
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
+            <span style={{ width: '12px', height: '3px', background: '#10b981', display: 'inline-block', borderRadius: '1px' }} />
+            Alternate (s3)
           </span>
           {rerouteX !== null && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
-              <span style={{ width: '12px', height: '0px', borderTop: '2px solid #10b981', display: 'inline-block' }} />
-              Rerouted to Alternate (s3)
+              <span style={{ width: '12px', height: '0px', borderTop: '2px dashed #10b981', display: 'inline-block' }} />
+              SDN Reroute
             </span>
           )}
         </div>
@@ -95,12 +109,24 @@ export const LossChart: React.FC<LossChartProps> = ({ state }) => {
             </g>
           )}
 
-          {/* Loss rate path */}
-          {points && (
+          {/* Primary Loss Path (Red) */}
+          {primaryPoints && (
             <path
-              d={points}
+              d={primaryPoints}
               fill="none"
-              stroke={state.total_lost > 0 && !rerouteX ? '#f43f5e' : (rerouteX ? '#10b981' : '#3b82f6')}
+              stroke="#f43f5e"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Alternate Loss Path (Green) */}
+          {alternatePoints && (
+            <path
+              d={alternatePoints}
+              fill="none"
+              stroke="#10b981"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"

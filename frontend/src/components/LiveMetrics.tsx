@@ -64,30 +64,40 @@ export const LiveMetrics: React.FC<MetricsProps> = ({ state }) => {
       </div>
 
       {/* 3. Measured Loss Rate */}
-      <div
-        className="card"
-        style={{
-          padding: '16px',
-          borderLeft: state.total_lost > 0 ? '3px solid #f43f5e' : '3px solid #10b981',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            Real-Time Packet Loss
-          </span>
-          <TrendingDown size={16} color={state.total_lost > 0 ? '#f43f5e' : '#10b981'} />
-        </div>
-        <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: state.total_lost > 0 ? '#f43f5e' : '#10b981' }}>
-          {state.current_loss_rate.toFixed(1)}%
-        </div>
-        <div style={{ fontSize: '0.75rem', marginTop: '10px', color: state.total_lost > 0 ? '#fb7185' : 'var(--text-muted)' }}>
-          {state.total_lost > 0 ? (
-            <span style={{ fontWeight: 600 }}>Loss Detected: {state.total_lost} dropped</span>
-          ) : (
-            <span>0 Packet Loss (Healthy)</span>
-          )}
-        </div>
-      </div>
+      {(() => {
+        const isDegraded = state.current_loss_rate > 0;
+        const isRecovered = state.reroute_triggered && state.current_loss_rate === 0;
+        const cardColor = isDegraded ? '#f43f5e' : '#10b981';
+
+        return (
+          <div
+            className="card"
+            style={{
+              padding: '16px',
+              borderLeft: `3px solid ${cardColor}`,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Real-Time Packet Loss
+              </span>
+              <TrendingDown size={16} color={cardColor} />
+            </div>
+            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: cardColor }}>
+              {state.current_loss_rate.toFixed(1)}%
+            </div>
+            <div style={{ fontSize: '0.75rem', marginTop: '10px', color: isDegraded ? '#fb7185' : '#34d399' }}>
+              {isRecovered ? (
+                <span style={{ fontWeight: 600 }}>0% Loss &bull; Restored on Alternate Path</span>
+              ) : isDegraded ? (
+                <span style={{ fontWeight: 600 }}>Loss Detected: {state.total_lost} dropped total</span>
+              ) : (
+                <span>0 Packet Loss (Healthy Link)</span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 4. Measured Recovery Time */}
       <div

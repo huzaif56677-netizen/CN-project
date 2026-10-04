@@ -12,8 +12,9 @@ MAX_RETRANSMISSIONS = int(os.environ.get("MAX_RETRANSMISSIONS", 2))       # Maxi
 
 # Loss Detection & Dynamic Reroute Trigger
 WINDOW_SIZE = int(os.environ.get("WINDOW_SIZE", 20))              # Rolling evaluation window
-LOSS_TRIGGER_COUNT = int(os.environ.get("LOSS_TRIGGER_COUNT", 1))  # Number of unrecovered packet drops to trigger SDN reroute (1 = immediate on any loss)
-LOSS_THRESHOLD = float(os.environ.get("LOSS_THRESHOLD", 0.0))     # Dynamic loss trigger threshold
+LOSS_THRESHOLD = float(os.environ.get("LOSS_THRESHOLD", 15.0))     # Dynamic loss trigger threshold (15%)
+LOSS_TRIGGER_COUNT = int(os.environ.get("LOSS_TRIGGER_COUNT", 3))  # Minimum packet drops to trigger SDN reroute
+MIN_EVAL_PACKETS = int(os.environ.get("MIN_EVAL_PACKETS", 25))     # Minimum packets transmitted on primary path before reroute evaluation
 
 # Network & Emulation Settings
 PRIMARY_PACKET_LOSS = int(os.environ.get("PRIMARY_PACKET_LOSS", 20))      # 20% loss on primary link s1-s2

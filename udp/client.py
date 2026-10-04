@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from config.settings import (
     SERVER_IP, SERVER_PORT, PACKET_COUNT, PACKET_INTERVAL,
     ACK_TIMEOUT, MAX_RETRANSMISSIONS, WINDOW_SIZE, LOSS_TRIGGER_COUNT,
+    LOSS_THRESHOLD, MIN_EVAL_PACKETS,
     RYU_REST_URL, WS_EVENT_URL, EVENT_SOCKET_PATH
 )
 
@@ -49,6 +50,8 @@ class UDPClient:
                  max_retransmissions: int = MAX_RETRANSMISSIONS,
                  window_size: int = WINDOW_SIZE,
                  loss_trigger_count: int = LOSS_TRIGGER_COUNT,
+                 loss_threshold: float = LOSS_THRESHOLD,
+                 min_eval_packets: int = MIN_EVAL_PACKETS,
                  controller_url: str = RYU_REST_URL):
         self.server_ip = server_ip
         self.server_port = server_port
@@ -58,7 +61,8 @@ class UDPClient:
         self.max_retransmissions = max_retransmissions
         self.window_size = window_size
         self.loss_trigger_count = loss_trigger_count
-        self.loss_threshold = 0.0
+        self.loss_threshold = loss_threshold
+        self.min_eval_packets = min_eval_packets
         self.controller_url = controller_url
 
         self.running = False
@@ -247,9 +251,17 @@ class UDPClient:
                 "path": path_tag
             })
 
-            # Check if actual packet loss was detected on primary path to trigger dynamic reroute
-            if (not self.reroute_triggered and not ack_received and
-                self.stats["before"]["packets_lost"] >= self.loss_trigger_count):
+            # Dynamic SDN Rerouting Trigger:
+            # Requires establishing real loss measurements on the primary path
+            # (evaluating over sliding window >= loss_threshold or observed sustained loss)
+            min_eval = min(self.min_eval_packets, max(3, self.packet_count // 3))
+            is_threshold_breached = (
+                seq >= min_eval and (
+                    current_window_loss_rate >= self.loss_threshold or
+                    self.stats["before"]["packets_lost"] >= self.loss_trigger_count
+                )
+            )
+            if not self.reroute_triggered and is_threshold_breached:
                 self.trigger_sdn_reroute(lost_seq=seq)
 
             # Measure Recovery Time: first successful ACK on alternate path after trigger
