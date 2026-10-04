@@ -8,7 +8,7 @@ interface TopologyProps {
 
 export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
   const isAlternate = state.active_path === 'alternate_s3';
-  const isRunning = state.status === 'RUNNING';
+  const isTransmitting = state.status === 'RUNNING' || state.status === 'RECOVERED';
 
   return (
     <div className="card" style={{ padding: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -65,9 +65,9 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="140"
             x2="220"
             y2="140"
-            stroke={isRunning ? '#3b82f6' : '#334155'}
+            stroke={isTransmitting ? '#3b82f6' : '#334155'}
             strokeWidth="3"
-            className={isRunning ? 'active-path-clean' : ''}
+            className={isTransmitting ? 'active-path-clean' : ''}
           />
 
           {/* s1 <-> s2 (Primary Path - 20% lossy) */}
@@ -76,10 +76,10 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="140"
             x2="360"
             y2="85"
-            stroke={!isAlternate && isRunning ? '#f43f5e' : '#334155'}
+            stroke={!isAlternate && isTransmitting ? '#f43f5e' : '#334155'}
             strokeWidth={!isAlternate ? '4' : '2'}
             strokeOpacity={isAlternate ? 0.3 : 1}
-            className={!isAlternate && isRunning ? 'active-path-lossy' : ''}
+            className={!isAlternate && isTransmitting ? 'active-path-lossy' : ''}
           />
 
           {/* s2 <-> s4 (Primary Path) */}
@@ -88,10 +88,10 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="85"
             x2="500"
             y2="140"
-            stroke={!isAlternate && isRunning ? '#f59e0b' : '#334155'}
+            stroke={!isAlternate && isTransmitting ? '#f59e0b' : '#334155'}
             strokeWidth={!isAlternate ? '4' : '2'}
             strokeOpacity={isAlternate ? 0.3 : 1}
-            className={!isAlternate && isRunning ? 'active-path-lossy' : ''}
+            className={!isAlternate && isTransmitting ? 'active-path-lossy' : ''}
           />
 
           {/* s1 <-> s3 (Alternate Path - 0% loss) */}
@@ -100,10 +100,10 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="140"
             x2="360"
             y2="195"
-            stroke={isAlternate && isRunning ? '#10b981' : '#334155'}
+            stroke={isAlternate && isTransmitting ? '#10b981' : '#334155'}
             strokeWidth={isAlternate ? '4' : '2'}
             strokeOpacity={!isAlternate ? 0.35 : 1}
-            className={isAlternate && isRunning ? 'active-path-clean' : ''}
+            className={isAlternate && isTransmitting ? 'active-path-clean' : ''}
           />
 
           {/* s3 <-> s4 (Alternate Path) */}
@@ -112,10 +112,10 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="195"
             x2="500"
             y2="140"
-            stroke={isAlternate && isRunning ? '#10b981' : '#334155'}
+            stroke={isAlternate && isTransmitting ? '#10b981' : '#334155'}
             strokeWidth={isAlternate ? '4' : '2'}
             strokeOpacity={!isAlternate ? 0.35 : 1}
-            className={isAlternate && isRunning ? 'active-path-clean' : ''}
+            className={isAlternate && isTransmitting ? 'active-path-clean' : ''}
           />
 
           {/* s4 <-> h2 */}
@@ -124,10 +124,48 @@ export const NetworkTopology: React.FC<TopologyProps> = ({ state }) => {
             y1="140"
             x2="640"
             y2="140"
-            stroke={isRunning ? (isAlternate ? '#10b981' : '#f59e0b') : '#334155'}
+            stroke={isTransmitting ? (isAlternate ? '#10b981' : '#f59e0b') : '#334155'}
             strokeWidth="3"
-            className={isRunning ? 'active-path-clean' : ''}
+            className={isTransmitting ? 'active-path-clean' : ''}
           />
+
+          {/* Dynamic In-Flight Packet Transmission Animation */}
+          {isTransmitting && (
+            <g key={isAlternate ? 'alt-packets' : 'prim-packets'}>
+              {/* Forward UDP Data Packet */}
+              <circle r="5" fill={isAlternate ? '#34d399' : '#60a5fa'}>
+                <animateMotion
+                  path={isAlternate
+                    ? "M 80,140 L 220,140 L 360,195 L 500,140 L 640,140"
+                    : "M 80,140 L 220,140 L 360,85 L 500,140 L 640,140"}
+                  dur="1.2s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+              {/* Pulsing Particle Glow */}
+              <circle r="9" fill={isAlternate ? 'rgba(52, 211, 153, 0.35)' : 'rgba(96, 165, 250, 0.35)'}>
+                <animateMotion
+                  path={isAlternate
+                    ? "M 80,140 L 220,140 L 360,195 L 500,140 L 640,140"
+                    : "M 80,140 L 220,140 L 360,85 L 500,140 L 640,140"}
+                  dur="1.2s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+
+              {/* Returning ACK Packet */}
+              <circle r="4" fill="#10b981">
+                <animateMotion
+                  path={isAlternate
+                    ? "M 640,140 L 500,140 L 360,195 L 220,140 L 80,140"
+                    : "M 640,140 L 500,140 L 360,85 L 220,140 L 80,140"}
+                  dur="1.2s"
+                  begin="0.6s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+            </g>
+          )}
 
           {/* Ryu Controller Node */}
           <g transform="translate(360, 32)">

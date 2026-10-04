@@ -80,11 +80,14 @@ class DynamicRerouteSDN(app_manager.RyuApp):
     def switch_features_handler(self, ev):
         """Handles switch connection and installs baseline primary flows."""
         datapath = ev.msg.datapath
+        self.datapaths[datapath.id] = datapath
+        self.logger.info(f"[SDN Controller] Switch connected: DPID={datapath.id}")
+        self.install_baseline_flows(datapath)
+
+    def install_baseline_flows(self, datapath):
+        """Installs baseline priority 1 primary forwarding flows on a switch."""
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-        self.datapaths[datapath.id] = datapath
-
-        self.logger.info(f"[SDN Controller] Switch connected: DPID={datapath.id}")
 
         # Table-Miss Flow Entry (priority 0): send unhandled packets to controller
         match = parser.OFPMatch()
@@ -122,17 +125,17 @@ class DynamicRerouteSDN(app_manager.RyuApp):
         )
         datapath.send_msg(mod)
 
-    def delete_flow_by_priority(self, datapath, priority):
-        """Helper to delete flows with a specific priority."""
+    def delete_flow_strict(self, datapath, priority, match):
+        """Helper to strictly delete a specific matching flow."""
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         mod = parser.OFPFlowMod(
             datapath=datapath,
-            command=ofproto.OFPFC_DELETE,
+            command=ofproto.OFPFC_DELETE_STRICT,
             out_port=ofproto.OFPP_ANY,
             out_group=ofproto.OFPG_ANY,
             priority=priority,
-            match=parser.OFPMatch()
+            match=match
         )
         datapath.send_msg(mod)
 
@@ -165,12 +168,21 @@ class DynamicRerouteSDN(app_manager.RyuApp):
         return True
 
     def remove_alternate_path_flows(self):
-        """Removes priority 10 flows from s1 and s4, falling back to priority 1 (s2)."""
+        """Removes priority 10 alternate flows and restores baseline primary flows."""
         if 1 in self.datapaths:
-            self.delete_flow_by_priority(self.datapaths[1], priority=10)
+            dp1 = self.datapaths[1]
+            p1 = dp1.ofproto_parser
+            self.delete_flow_strict(dp1, priority=10, match=p1.OFPMatch(in_port=1))
+            self.delete_flow_strict(dp1, priority=10, match=p1.OFPMatch(in_port=3))
+            self.install_baseline_flows(dp1)
+
         if 4 in self.datapaths:
-            self.delete_flow_by_priority(self.datapaths[4], priority=10)
+            dp4 = self.datapaths[4]
+            p4 = dp4.ofproto_parser
+            self.delete_flow_strict(dp4, priority=10, match=p4.OFPMatch(in_port=1))
+            self.delete_flow_strict(dp4, priority=10, match=p4.OFPMatch(in_port=3))
+            self.install_baseline_flows(dp4)
 
         self.active_path = "primary_s2"
-        self.logger.info("[SDN Controller] Reverted to Primary Path (s2)!")
+        self.logger.info("[SDN Controller] Reverted to Primary Path (s2) and restored baseline flows!")
         return True
